@@ -1,0 +1,12 @@
+**/obj
+**/bin
+.vs
+*.sh
+.git
+.gitattributes
+.gitignore
+.editorconfig
+**/launchSettings.json
+*.md
+delivery/
+perf/

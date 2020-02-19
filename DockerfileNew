@@ -1,0 +1,43 @@
+############
+### BASE ###
+############
+FROM mcr.microsoft.com/dotnet/core/aspnet:3.1.2 AS base
+WORKDIR /app
+EXPOSE 80
+
+#############
+### BUILD ###
+#############
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1.102 AS build
+WORKDIR /build
+
+COPY src/PipelineFailureRepro/*.csproj ./src/PipelineFailureRepro/
+COPY test/FunctionalTest/*.csproj ./test/FunctionalTest/
+
+RUN dotnet restore src/PipelineFailureRepro/PipelineFailureRepro.csproj --verbosity quiet
+RUN dotnet restore test/FunctionalTest/FunctionalTest.csproj --verbosity quiet
+
+COPY test test
+COPY src src
+
+RUN dotnet build src/PipelineFailureRepro/PipelineFailureRepro.csproj -c Release --no-restore /clp:ErrorsOnly
+RUN dotnet build test/FunctionalTest/FunctionalTest.csproj -c Release --no-restore /clp:ErrorsOnly
+
+############
+### TEST ###
+############
+FROM build as test
+RUN dotnet test test/FunctionalTest/FunctionalTest.csproj -c Release --no-build --no-restore --verbosity minimal 
+
+###############
+### PUBLISH ###
+###############
+FROM build as publish
+RUN dotnet publish src/PipelineFailureRepro/PipelineFailureRepro.csproj -c Release -o /app --no-restore --verbosity quiet /clp:ErrorsOnly
+
+#############
+### FINAL ###
+#############
+FROM base as final
+COPY --from=publish /app .
+ENTRYPOINT ["dotnet", "PipelineFailureRepro.dll"]
